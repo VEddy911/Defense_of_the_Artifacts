@@ -1,0 +1,17 @@
+{
+  "name": "defense_of_the_artifacts",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "packages/client",
+    "packages/server"
+  ],
+  "scripts": {
+    "dev:server": "npm -w server run dev",
+    "dev:client": "npm -w client run dev",
+    "dev": "npm-run-all -p dev:server dev:client"
+  },
+  "devDependencies": {
+    "npm-run-all": "^4.1.5"
+  }
+}
