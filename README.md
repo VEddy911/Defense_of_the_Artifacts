@@ -35,6 +35,6 @@ Vite + TypeScript – fast client development environment
 
  Implement HUD + UI
 
- Add PvE mode
+ Add PvP mode
 
  Add deployment
