@@ -1,0 +1,3 @@
+node_modules #installed packages, huge folder, never commit
+dist #build output
+.env #top secret keys plz don't mess this up
