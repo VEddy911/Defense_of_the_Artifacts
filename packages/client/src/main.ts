@@ -4,10 +4,10 @@ import { io } from "socket.io-client";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 app.innerHTML = `
-  <div style="color: white; font-family: sans-serif; text-align: center; margin-top: 40px;">
-    <h1>Defense of the Artifacts</h1>
-    <p>Check the browser console for Socket.IO logs.</p>
-  </div>
+  <!-- <div style="color: white; font-family: sans-serif; text-align: center; margin-top: 40px;"> -->
+  <!--   <h1>Defense of the Artifacts</h1> -->
+  <!--   <p>Check the browser console for Socket.IO logs.</p> -->
+  <!-- </div> -->
 `;
 
 // connect to our Node/Socket.IO server
