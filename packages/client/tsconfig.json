@@ -5,22 +5,23 @@
     "module": "ESNext",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["vite/client"],
-    "skipLibCheck": true,
+    "skipLibCheck": true, // don't type check .d.ts files from node_module
+    "sourceMap": true, // generate source maps so browser devtools can map JS back to TS
 
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
+    "isolatedModules": true, // treat every file as an isolated module
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
 
     /* Linting */
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "erasableSyntaxOnly": true,
+    "strict": true, // Turn on all strict checks
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
-  },
-  "include": ["src"]
+    "noUncheckedSideEffectImports": true,
+    "preserveConstEnums": true,
+    
+    "rootDir": "src"
+  }
 }
