@@ -33,7 +33,8 @@ export class App {
 
     // game state tracking
     private _state: number = 0;
-    private _gamescene: Scene;
+    // typescript being picky, add !: so it ignore the warning
+    private _gamescene !: Scene;
 
     // game object references
     private _environment: Environment | undefined;
@@ -166,6 +167,20 @@ export class App {
                 this._player!.update();
             });
         }
+        // edd - fixing mouse look around behave
+        const canvas = this._canvas;
+        scene.onPointerDown = (evt) => {
+            //left click
+            if (evt.button == 0){
+                //request pointer lock
+                canvas.requestPointerLock();
+            }
+        };
+        //when pointer lock is lost (ESC)
+        document.addEventListener("pointerlockchange", () => {
+            const locked = document.pointerLockElement === canvas;
+            console.log("Pointer lock:", locked ? "locked" : "unlocked");
+        });
 
         // TODO: add in‑game GUI elements, sounds and shadow generators
 

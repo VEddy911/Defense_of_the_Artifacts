@@ -10,6 +10,10 @@ export class PlayerInput {
     // axis values ranging from -1 to 1
     public horizontal: number = 0;
     public vertical: number = 0;
+        // add jump sprint crouch inputs
+    public jump: boolean = false;
+    public sprint: boolean = false;
+    public crouch: boolean = false;
 
     private _keysPressed: Set<string> = new Set();
     private _scene: Scene;
@@ -20,22 +24,33 @@ export class PlayerInput {
         this._scene = scene;
         this._onKeyDown = (e) => this._handleKeyDown(e);
         this._onKeyUp = (e) => this._handleKeyUp(e);
-        // Attach directly to window so that input is captured even when
-        // pointer lock is active.
+        // Attach directly to window so that input is captured even when pointer lock is active.
         window.addEventListener("keydown", this._onKeyDown);
         window.addEventListener("keyup", this._onKeyUp);
     }
-
+    // added key for SSC
     private _handleKeyDown(e: KeyboardEvent) {
-        // Track the pressed key
-        this._keysPressed.add(e.key.toLowerCase());
+        const key = e.key.toLowerCase();
+        this._keysPressed.add(key);
+
+        if (key === " ") this.jump = true;           // Space = jump
+        if (key === "shift") this.sprint = true;     // Shift = sprint
+        if (key === "control") this.crouch = true;   // Ctrl = crouch
+
         this._updateAxes();
     }
 
     private _handleKeyUp(e: KeyboardEvent) {
-        this._keysPressed.delete(e.key.toLowerCase());
+        const key = e.key.toLowerCase();
+        this._keysPressed.delete(key);
+
+        if (key === " ") this.jump = false;
+        if (key === "shift") this.sprint = false;
+        if (key === "control") this.crouch = false;
+
         this._updateAxes();
     }
+
 
     // Convert the current set of pressed keys into horizontal and vertical
     private _updateAxes() {
@@ -63,5 +78,6 @@ export class PlayerInput {
         window.removeEventListener("keydown", this._onKeyDown);
         window.removeEventListener("keyup", this._onKeyUp);
     }
+
 }
 
