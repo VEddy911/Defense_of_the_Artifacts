@@ -2,28 +2,28 @@ import "@babylonjs/core/Debug/debugLayer";
 import "@babylonjs/inspector";
 import "@babylonjs/loaders/glTF";
 
+import { HUD } from "./hud";
+
 import {
     Engine,
     Scene,
     Color4,
     Vector3,
     FreeCamera,
-    ArcRotateCamera,
-    HemisphericLight,
-    Mesh,
-    MeshBuilder
 } from "@babylonjs/core";
-import { AdvancedDynamicTexture, Button, Control } from "@babylonjs/gui";
+
+import {
+    AdvancedDynamicTexture,
+    TextBlock,
+    Rectangle,
+    Control,
+    Button
+} from "@babylonjs/gui";
 
 import { Environment } from "./environment";
 import { PlayerInput } from "./inputController";
 import { Player } from "./characterController";
 
-/**
- * Game states used to drive the simple state machine.  START displays
- * the main menu, IN_GAME runs the game scene, and GAME_END is reserved for
- * future end state screens.
- */
 enum State { START = 0, IN_GAME = 2, GAME_END = 3 }
 
 export class App {
@@ -31,31 +31,27 @@ export class App {
     private _canvas: HTMLCanvasElement;
     private _engine: Engine;
 
-    // game state tracking
     private _state: number = 0;
-    // typescript being picky, add !: so it ignore the warning
-    private _gamescene !: Scene;
+    private _gamescene!: Scene;
 
-    // game object references
-    private _environment: Environment | undefined;
-    private _input: PlayerInput | undefined;
-    private _player: Player | undefined;
+    private _environment?: Environment;
+    private _input?: PlayerInput;
+    private _player?: Player;
+
+    private _hud?: HUD;
 
     constructor() {
         this._canvas = this._createCanvas();
 
-        // initialize babylon scene & engine
         this._engine = new Engine(this._canvas, true);
         this._scene = new Scene(this._engine);
 
-        // hide/show the Inspector with Shift+Ctrl+Alt+I
+        // Toggle inspector
         window.addEventListener("keydown", (ev) => {
             if (ev.shiftKey && ev.ctrlKey && ev.altKey && ev.keyCode === 73) {
-                if (this._scene.debugLayer.isVisible()) {
-                    this._scene.debugLayer.hide();
-                } else {
-                    this._scene.debugLayer.show();
-                }
+                this._scene.debugLayer.isVisible()
+                    ? this._scene.debugLayer.hide()
+                    : this._scene.debugLayer.show();
             }
         });
 
@@ -66,24 +62,11 @@ export class App {
         await this._setUpGame();
         await this._goToStart();
 
-        // Run the appropriate scene based on the current state
         this._engine.runRenderLoop(() => {
-            switch (this._state) {
-                case State.START:
-                    this._scene.render();
-                    break;
-                case State.IN_GAME:
-                    this._scene.render();
-                    break;
-                case State.GAME_END:
-                    this._scene.render();
-                    break;
-                default:
-                    break;
-            }
+            this._scene.render();
         });
 
-        window.addEventListener('resize', () => {
+        window.addEventListener("resize", () => {
             this._engine.resize();
         });
     }
@@ -100,30 +83,26 @@ export class App {
     private async _setUpGame() {
         const scene = new Scene(this._engine);
         this._gamescene = scene;
+
         this._environment = new Environment(scene);
         await this._environment.load();
 
         this._input = new PlayerInput(scene);
-
-        // Create the player with a first‑person camera.  The player's
-        // update method will be called each frame via the scene's
-        // onBeforeRenderObservable in goToGame().  Pass in canvas so
-        // pointer lock/mouse look can attach correctly.
         this._player = new Player(scene, this._canvas, this._input);
     }
 
-     // Transitions to the start menu.
+    // START MENU
     private async _goToStart() {
         this._engine.displayLoadingUI();
         this._scene.detachControl();
+
         const scene = new Scene(this._engine);
         scene.clearColor = new Color4(0, 0, 0, 1);
-        // Set up a free camera for the menu
+
         const camera = new FreeCamera("menuCamera", new Vector3(0, 0, -10), scene);
         camera.setTarget(Vector3.Zero());
         scene.attachControl();
 
-        // GUI
         const guiMenu = AdvancedDynamicTexture.CreateFullscreenUI("UI", true, scene);
         guiMenu.idealHeight = 720;
 
@@ -133,30 +112,29 @@ export class App {
         startBtn.color = "white";
         startBtn.top = "-14px";
         startBtn.thickness = 0;
-        startBtn.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
+        startBtn.verticalAlignment = Control.VERTICAL_ALIGNMENT_CENTER;
         guiMenu.addControl(startBtn);
 
         startBtn.onPointerDownObservable.add(() => {
             this._goToGame();
         });
 
-        // Wait for the scene to be ready and switch
+
         await scene.whenReadyAsync();
         this._engine.hideLoadingUI();
+
         this._scene.dispose();
         this._scene = scene;
         this._state = State.START;
     }
 
-     // Sets up and transitions into the gameplay scen
+    // GAMEPLAY
     private async _goToGame() {
         this._scene.detachControl();
 
         const scene = this._gamescene;
-        // dark blue
         scene.clearColor = new Color4(0.01, 0.015, 0.2);
 
-        // Ensure the player's camera is set as the active camera
         if (this._player) {
             scene.activeCamera = this._player.camera;
         }
@@ -167,32 +145,32 @@ export class App {
                 this._player!.update();
             });
         }
-        // edd - fixing mouse look around behave
+
+        // FIXED — Delay HUD until AFTER the scene becomes active
+        this._scene.dispose();
+        this._scene = scene;
+        this._state = State.IN_GAME;
+
+        // NOW safe to initialize HUD
+        this._hud = new HUD(this._scene);
+        this._hud.buildHUD();
+
+        // Mouse lock
         const canvas = this._canvas;
         scene.onPointerDown = (evt) => {
-            //left click
-            if (evt.button == 0){
-                //request pointer lock
+            if (evt.button === 0) {
                 canvas.requestPointerLock();
             }
         };
-        //when pointer lock is lost (ESC)
+
         document.addEventListener("pointerlockchange", () => {
             const locked = document.pointerLockElement === canvas;
             console.log("Pointer lock:", locked ? "locked" : "unlocked");
         });
 
-        // TODO: add in‑game GUI elements, sounds and shadow generators
-
-        // Transition state
-        this._scene.dispose();
-        this._state = State.IN_GAME;
-        this._scene = scene;
         this._engine.hideLoadingUI();
-        // Attach control to the scene so pointer lock works when playing
         this._scene.attachControl();
     }
 }
 
 export default new App();
-
