@@ -25,9 +25,9 @@ Vite + TypeScript – fast client development environment
 
  Client <-> Server socket connection working ✅
 
- Add Babylon.js 3D scene
+ Add Babylon.js 3D scene ✅
 
- Implement movement + camera
+ Implement movement + camera ✅
 
  Implement player synchronization
 
