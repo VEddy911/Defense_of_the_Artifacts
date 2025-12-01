@@ -1,14 +1,16 @@
 // packages/client/src/main.ts
 import "./style.css";
+
+// import creates and starts the babylon app
+import "./app";
+
 import { io } from "socket.io-client";
 
-const app = document.querySelector<HTMLDivElement>("#app")!;
-app.innerHTML = `
-  <!-- <div style="color: white; font-family: sans-serif; text-align: center; margin-top: 40px;"> -->
-  <!--   <h1>Defense of the Artifacts</h1> -->
-  <!--   <p>Check the browser console for Socket.IO logs.</p> -->
-  <!-- </div> -->
-`;
+// If you still have a #app div in index.html you can optionally clear it or use it for UI overlays
+const root = document.querySelector<HTMLDivElement>("#app");
+if (root) {
+  root.innerHTML = "";
+}
 
 // connect to our Node/Socket.IO server
 const socket = io("http://localhost:3000");
