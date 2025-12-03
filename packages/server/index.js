@@ -8,33 +8,46 @@ const app = express();
 app.use(cors());
 
 const server = http.createServer(app);
-
 const io = new Server(server, {
-  cors: {
-    origin: "http://localhost:5173", // Vite dev server
-    methods: ["GET", "POST"],
-  },
+  cors: { origin: "http://localhost:5173", methods: ["GET", "POST"] },
 });
 
-io.on("connection", (socket) => {
-  console.log("[server] client connected:", socket.id);
+// socket.id - { x, y, z, ry } - for tracking position and rotation of player
+const players = new Map();
 
-  socket.on("hello", (data) => {
-    console.log("[server] hello from", socket.id, data);
-    socket.emit("server-ping", { time: Date.now() });
+io.on("connection", (socket) => {
+  console.log("[server] Player connected:", socket.id);
+
+  // add default state for this player
+  players.set(socket.id, { x: 0, y: 2, z: 0, ry: 0 });
+
+  // receive player state from a client
+  socket.on("playerState", (state) => {
+    const current = players.get(socket.id);
+    if (!current) return;
+
+    players.set(socket.id, {
+      x: state.x ?? current.x,
+      y: state.y ?? current.y,
+      z: state.z ?? current.z,
+      ry: state.ry ?? current.ry,
+    });
   });
 
   socket.on("disconnect", () => {
-    console.log("[server] client disconnected:", socket.id);
+    console.log("[server] Player disconnected:", socket.id);
+    players.delete(socket.id); // remove from map so no ghost player
   });
 });
 
-// simple health check
-app.get("/health", (req, res) => {
-  res.json({ ok: true });
-});
+// broadcast world state around 20 times per second - latency test in future
+setInterval(() => {
+  const payload = [];
+  for (const [id, s] of players.entries()) {
+    payload.push({ id, ...s });
+  }
+  io.emit("worldState", { players: payload });
+}, 50);
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`[server] listening on http://localhost:${PORT}`);
-});
+server.listen(PORT, () => console.log("[server] listening on", PORT));
