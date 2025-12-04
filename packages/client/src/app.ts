@@ -49,6 +49,8 @@ export class App {
   private _hud?: HUD;
   private _remotePlayers?: RemotePlayers;
 
+  private _lastStateSend = 0;
+
   constructor() {
     this._canvas = this._createCanvas();
 
@@ -74,6 +76,8 @@ export class App {
     await this._goToStart();
 
     this._engine.runRenderLoop(() => {
+      // avoid rendering/sending updates when tab is hidden
+      if (document.hidden) return;
       this._scene.render();
     });
 
@@ -98,7 +102,7 @@ export class App {
     this._environment = new Environment(scene);
     await this._environment.load();
 
-    this._input = new PlayerInput(scene);
+    this._input = new PlayerInput();
     this._player = new Player(scene, this._canvas, this._input);
     this._chat = new ChatUI(this._input);
 
@@ -163,21 +167,25 @@ export class App {
     scene.onBeforeRenderObservable.clear();
     scene.onBeforeRenderObservable.add(() => {
       if (!this._player) return;
+      const now = performance.now();
 
       // local movement
       this._player.update();
 
-      // send local player state to server
-      const cam = this._player.camera;
-      const pos = cam.position;
-      const rot = cam.rotation;
+      // send local player state to server at ~20 Hz
+      if (now - this._lastStateSend >= 50) {
+        this._lastStateSend = now;
+        const cam = this._player.camera;
+        const pos = cam.position;
+        const rot = cam.rotation;
 
-      socket.emit("playerState", {
-        x: pos.x,
-        y: pos.y,
-        z: pos.z,
-        ry: rot.y,
-      });
+        socket.emit("playerState", {
+          x: pos.x,
+          y: pos.y,
+          z: pos.z,
+          ry: rot.y,
+        });
+      }
     });
 
     // switch scene & HUD

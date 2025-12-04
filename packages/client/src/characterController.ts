@@ -7,21 +7,23 @@ export class Player {
     private _input: PlayerInput;
     private _scene: Scene;
 
-    private _isJumping = false;
     private _isCrouched = false;
+    private _isAds = false;
 
     private _gravity = -50;
     private _jumpForce = 23;
     private _verticalVelocity = 0;
 
-    private _standHeight = 2.0;
-    private _crouchHeight = 1.6;
+    private _eyeHeight = 2.0;
+    private _crouchHeight = 1.5;
+    private _defaultFov = 0.8;
+    private _adsFov = 0.55;
 
     constructor(scene: Scene, canvas: HTMLCanvasElement, input: PlayerInput) {
         this._scene = scene;
         this._input = input;
 
-        this.camera = new UniversalCamera("playerCamera", new Vector3(0, this._standHeight, -10), scene);
+        this.camera = new UniversalCamera("playerCamera", new Vector3(0, this._eyeHeight, -10), scene);
         this.camera.attachControl(canvas, true);
 
         this.camera.inputs.removeByType("FreeCameraKeyboardMoveInput");
@@ -35,15 +37,22 @@ export class Player {
         this.camera.ellipsoidOffset = new Vector3(0, 1.0, 0);
 
         this.camera.minZ = 0.01;
+        this.camera.fov = this._defaultFov;
     }
 
     public update(): void {
         const dt = this._scene.getEngine().getDeltaTime() / 1000;
 
-        // Movement speed
-        const walkSpeed = 2;
-        const sprintSpeed = 5;
-        const moveSpeed = this._input.sprint ? sprintSpeed : walkSpeed;
+        // Movement speed (reduced while airborne and when crouched/ADS)
+        const baseSpeed = 2.8;
+        const adsSpeed = 1.6;
+        const crouchSpeed = 1.7;
+        const isAirborne = this._verticalVelocity !== 0 || this.camera.position.y > this._eyeHeight + 0.05;
+        const airPenalty = isAirborne ? 0.5 : 1; // slower in air
+        let moveSpeed = baseSpeed;
+        if (this._isAds) moveSpeed = adsSpeed;
+        if (this._isCrouched) moveSpeed = Math.min(moveSpeed, crouchSpeed);
+        moveSpeed *= airPenalty;
 
         const forward = this.camera.getDirection(new Vector3(0, 0, 1));
         const right = this.camera.getDirection(new Vector3(1, 0, 0));
@@ -52,7 +61,16 @@ export class Player {
         forward.normalize();
         right.normalize();
 
-        // CROUCH
+        // ADS toggle (hold)
+        if (this._input.ads && !this._isAds) {
+            this._isAds = true;
+            this.camera.fov = this._adsFov;
+        } else if (!this._input.ads && this._isAds) {
+            this._isAds = false;
+            this.camera.fov = this._defaultFov;
+        }
+
+        // Crouch toggle (hold C)
         if (this._input.crouch && !this._isCrouched) {
             this._isCrouched = true;
             this.camera.position.y = this._crouchHeight;
@@ -60,7 +78,7 @@ export class Player {
             this.camera.ellipsoidOffset = new Vector3(0, 0.8, 0);
         } else if (!this._input.crouch && this._isCrouched) {
             this._isCrouched = false;
-            this.camera.position.y = this._standHeight;
+            this.camera.position.y = this._eyeHeight;
             this.camera.ellipsoid = new Vector3(0.5, 1.0, 0.5);
             this.camera.ellipsoidOffset = new Vector3(0, 1.0, 0);
         }
@@ -68,19 +86,18 @@ export class Player {
         // GRAVITY
         this._verticalVelocity += this._gravity * dt;
 
+        const targetHeight = this._isCrouched ? this._crouchHeight : this._eyeHeight;
         const grounded =
             this._verticalVelocity <= 0 &&
-            this.camera.position.y <= this._standHeight + 0.05;
+            this.camera.position.y <= targetHeight + 0.05;
 
         // JUMP
         if (grounded) {
-            this.camera.position.y = this._isCrouched ? this._crouchHeight : this._standHeight;
+            this.camera.position.y = targetHeight;
             this._verticalVelocity = 0;
-            this._isJumping = false;
 
             if (this._input.jump) {
                 this._verticalVelocity = this._jumpForce;
-                this._isJumping = true;
             }
         }
 
