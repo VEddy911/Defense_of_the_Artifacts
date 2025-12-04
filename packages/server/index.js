@@ -34,6 +34,13 @@ io.on("connection", (socket) => {
     });
   });
 
+  socket.on("chat:message", (payload) => {
+    const text = (payload?.text ?? "").toString().trim();
+    if (!text) return;
+    const clipped = text.slice(0, 240);
+    io.emit("chat:message", { id: socket.id, text: clipped });
+  });
+
   socket.on("disconnect", () => {
     console.log("[server] Player disconnected:", socket.id);
     players.delete(socket.id); // remove from map so no ghost player
