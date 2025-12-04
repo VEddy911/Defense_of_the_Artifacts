@@ -17,6 +17,7 @@ export class PlayerInput {
 
     private _keysPressed: Set<string> = new Set();
     private _scene: Scene;
+    private _enabled = true;
     private _onKeyDown: (e: KeyboardEvent) => void;
     private _onKeyUp: (e: KeyboardEvent) => void;
 
@@ -30,6 +31,8 @@ export class PlayerInput {
     }
     // added key for SSC
     private _handleKeyDown(e: KeyboardEvent) {
+        if (this._shouldIgnoreInput(e)) return;
+
         const key = e.key.toLowerCase();
         this._keysPressed.add(key);
 
@@ -41,6 +44,8 @@ export class PlayerInput {
     }
 
     private _handleKeyUp(e: KeyboardEvent) {
+        if (this._shouldIgnoreInput(e)) return;
+
         const key = e.key.toLowerCase();
         this._keysPressed.delete(key);
 
@@ -51,6 +56,13 @@ export class PlayerInput {
         this._updateAxes();
     }
 
+    private _shouldIgnoreInput(e: KeyboardEvent): boolean {
+        if (!this._enabled) return true;
+        const target = e.target as HTMLElement | null;
+        if (!target) return false;
+        const tag = target.tagName.toLowerCase();
+        return tag === "input" || tag === "textarea" || target.isContentEditable === true;
+    }
 
     // Convert the current set of pressed keys into horizontal and vertical
     private _updateAxes() {
@@ -77,6 +89,18 @@ export class PlayerInput {
     public detach() {
         window.removeEventListener("keydown", this._onKeyDown);
         window.removeEventListener("keyup", this._onKeyUp);
+    }
+
+    public setEnabled(enabled: boolean) {
+        this._enabled = enabled;
+        if (!enabled) {
+            this._keysPressed.clear();
+            this.horizontal = 0;
+            this.vertical = 0;
+            this.jump = false;
+            this.sprint = false;
+            this.crouch = false;
+        }
     }
 
 }

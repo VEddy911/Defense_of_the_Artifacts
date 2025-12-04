@@ -21,6 +21,7 @@ import {
 import { Environment } from "./environment";
 import { PlayerInput } from "./inputController";
 import { Player } from "./characterController";
+import { ChatUI } from "./chat";
 
 // multiplayer
 import { RemotePlayers } from "./remotePlayers";
@@ -43,6 +44,7 @@ export class App {
   private _environment?: Environment;
   private _input?: PlayerInput;
   private _player?: Player;
+  private _chat?: ChatUI;
 
   private _hud?: HUD;
   private _remotePlayers?: RemotePlayers;
@@ -98,6 +100,7 @@ export class App {
 
     this._input = new PlayerInput(scene);
     this._player = new Player(scene, this._canvas, this._input);
+    this._chat = new ChatUI(this._input);
 
     // remote players manager
     this._remotePlayers = new RemotePlayers(scene);
