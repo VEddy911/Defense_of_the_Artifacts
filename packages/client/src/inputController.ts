@@ -1,5 +1,3 @@
-import { Scene } from "@babylonjs/core";
-
 /**
  * PlayerInput abstracts away the raw keyboard events into simple numeric
  * values representing forward/back (vertical) and left/right (horizontal)
@@ -10,19 +8,17 @@ export class PlayerInput {
     // axis values ranging from -1 to 1
     public horizontal: number = 0;
     public vertical: number = 0;
-        // add jump sprint crouch inputs
+        // add jump + ADS inputs
     public jump: boolean = false;
-    public sprint: boolean = false;
+    public ads: boolean = false;
     public crouch: boolean = false;
 
     private _keysPressed: Set<string> = new Set();
-    private _scene: Scene;
     private _enabled = true;
     private _onKeyDown: (e: KeyboardEvent) => void;
     private _onKeyUp: (e: KeyboardEvent) => void;
 
-    constructor(scene: Scene) {
-        this._scene = scene;
+    constructor() {
         this._onKeyDown = (e) => this._handleKeyDown(e);
         this._onKeyUp = (e) => this._handleKeyUp(e);
         // Attach directly to window so that input is captured even when pointer lock is active.
@@ -37,8 +33,8 @@ export class PlayerInput {
         this._keysPressed.add(key);
 
         if (key === " ") this.jump = true;           // Space = jump
-        if (key === "shift") this.sprint = true;     // Shift = sprint
-        if (key === "control") this.crouch = true;   // Ctrl = crouch
+        if (key === "shift") this.ads = true;        // Shift = ADS
+        if (key === "c") this.crouch = true;         // C = crouch
 
         this._updateAxes();
     }
@@ -50,8 +46,8 @@ export class PlayerInput {
         this._keysPressed.delete(key);
 
         if (key === " ") this.jump = false;
-        if (key === "shift") this.sprint = false;
-        if (key === "control") this.crouch = false;
+        if (key === "shift") this.ads = false;
+        if (key === "c") this.crouch = false;
 
         this._updateAxes();
     }
@@ -98,7 +94,7 @@ export class PlayerInput {
             this.horizontal = 0;
             this.vertical = 0;
             this.jump = false;
-            this.sprint = false;
+            this.ads = false;
             this.crouch = false;
         }
     }

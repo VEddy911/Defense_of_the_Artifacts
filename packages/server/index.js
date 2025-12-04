@@ -47,8 +47,9 @@ io.on("connection", (socket) => {
   });
 });
 
-// broadcast world state around 20 times per second - latency test in future
+// broadcast world state around 20 times per second - skip when empty
 setInterval(() => {
+  if (players.size === 0) return;
   const payload = [];
   for (const [id, s] of players.entries()) {
     payload.push({ id, ...s });
