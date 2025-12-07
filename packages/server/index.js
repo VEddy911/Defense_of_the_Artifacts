@@ -1,4 +1,3 @@
-// packages/server/index.js
 const express = require("express");
 const http = require("http");
 const cors = require("cors");
@@ -20,9 +19,9 @@ const WEAPONS = {
 
 // socket.id - { x, y, z, ry } - for tracking position and rotation of player
 const players = new Map();
-const history = new Map(); // socket.id -> array of {t,x,y,z}
+const history = new Map(); // socket.id
 const lastFireAt = new Map();
-const buckets = new Map(); // token bucket for spam limiting
+const buckets = new Map(); //spam limiting
 
 io.on("connection", (socket) => {
   console.log("[server] Player connected:", socket.id);
@@ -43,7 +42,7 @@ io.on("connection", (socket) => {
       hp: current.hp ?? 100,
     });
 
-    // track history for lag comp (keep last ~500ms)
+    // track history for lag comp
     const now = Date.now();
     const list = history.get(socket.id) || [];
     list.push({ t: now, x: state.x ?? current.x, y: state.y ?? current.y, z: state.z ?? current.z });
@@ -58,7 +57,7 @@ io.on("connection", (socket) => {
     const weapon = WEAPONS[payload?.weaponId];
     if (!weapon) return;
 
-    // fire-rate guard (server side) + token bucket
+    // fire-rate guard
     const now = Date.now();
     const minInterval = 60000 / weapon.rpm;
     const prev = lastFireAt.get(socket.id) || 0;
@@ -83,7 +82,7 @@ io.on("connection", (socket) => {
     const target = players.get(targetId);
     if (!target) return;
 
-    // distance check to prevent obvious spoofing
+    // distance check prevent spoofing
     const shooterPos = pickHistorical(history.get(socket.id), payload?.ts) || shooter;
     const targetPos = pickHistorical(history.get(targetId), payload?.ts) || target;
     const ox = payload.origin?.x ?? shooterPos.x;
@@ -97,7 +96,7 @@ io.on("connection", (socket) => {
     const maxRange = weapon.range + 1;
     if (distSq > maxRange * maxRange) return;
 
-    // angle check: ensure target lies roughly along shot direction
+    // enemy angle check 
     const dir = payload.direction;
     if (!dir) return;
     const toTarget = {
@@ -120,6 +119,24 @@ io.on("connection", (socket) => {
     const maxAngleCos = Math.cos((weapon.cone * Math.PI) / 180);
     if (cosTheta < maxAngleCos) return;
 
+    // idk what im doing - hitpoint verify?
+    const hitPoint = payload?.hitPoint;
+    if (hitPoint) {
+      const hx = hitPoint.x - ox;
+      const hy = hitPoint.y - oy;
+      const hz = hitPoint.z - oz;
+      const hDist = Math.sqrt(hx * hx + hy * hy + hz * hz) || 1;
+      if (hDist > weapon.range + 1) return;
+      const hDot = (hx * dir.x + hy * dir.y + hz * dir.z) / (hDist * dirMag || 1);
+      if (hDot < Math.cos((weapon.cone * Math.PI) / 180)) return;
+      // target must be close to the hitPoint
+      const tx = targetPos.x - hitPoint.x;
+      const ty = targetPos.y - hitPoint.y;
+      const tz = targetPos.z - hitPoint.z;
+      const tDist = Math.sqrt(tx * tx + ty * ty + tz * tz);
+      if (tDist > 1.2) return;
+    }
+
     lastFireAt.set(socket.id, now);
 
     let dmg = weapon.damage;
@@ -130,10 +147,7 @@ io.on("connection", (socket) => {
         dmg = Math.max(4, weapon.damage * (1 - 0.6 * t));
       }
     }
-    const hitPoint = payload?.hitPoint;
-    if (hitPoint && hitPoint.y > (targetPos.y ?? 0) + 1.2) {
-      dmg = Math.floor(dmg * 1.5);
-    }
+    // all hits do the same damage, no headshot damage (or maybe)
 
     const newHp = Math.max(0, (target.hp ?? 100) - dmg);
     players.set(targetId, { ...target, hp: newHp });
@@ -170,7 +184,7 @@ io.on("connection", (socket) => {
   });
 });
 
-// broadcast world state around 20 times per second - skip when empty
+// some latency optimize
 setInterval(() => {
   if (players.size === 0) return;
   const payload = [];

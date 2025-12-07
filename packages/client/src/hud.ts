@@ -19,10 +19,9 @@ export class HUD {
   private _reloadContainer?: Rectangle;
   private _weaponText?: TextBlock;
   private _modeText?: TextBlock;
-  private _statusText?: TextBlock;
   private _killFeedStack?: StackPanel;
   private _maxHealth = 100;
-  private _crosshairBaseSize = 6;
+  private _crosshairBaseSize = 3;
 
   constructor(scene: Scene) {
     this._scene = scene;
@@ -32,7 +31,7 @@ export class HUD {
     this._ui = AdvancedDynamicTexture.CreateFullscreenUI("HUD", true, this._scene);
     this._ui.idealHeight = 720;
 
-    // Health panel bottom-left (under chat)
+    // Health panel
     const healthPanel = new Rectangle("healthPanel");
     healthPanel.width = "350px";
     healthPanel.height = "60px";
@@ -92,17 +91,17 @@ export class HUD {
     healthContainer.addControl(healthText);
     this._healthText = healthText;
 
-    // Ammo panel bottom-right
+    // Ammo panel 
     const ammoPanel = new Rectangle("ammoPanel");
     ammoPanel.width = "240px";
-    ammoPanel.height = "90px";
+    ammoPanel.height = "100px";
     ammoPanel.cornerRadius = 12;
     ammoPanel.thickness = 1;
     ammoPanel.color = "rgba(255,255,255,0.08)";
     ammoPanel.background = "rgba(10, 12, 26, 0.55)";
     ammoPanel.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
     ammoPanel.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
-    ammoPanel.left = "-26px"; // offset from right edge
+    ammoPanel.left = "-26px"; // move in from right (bottem-left)
     ammoPanel.top = "-18px";
     ammoPanel.paddingLeft = "12px";
     ammoPanel.paddingRight = "12px";
@@ -134,7 +133,7 @@ export class HUD {
     weaponText.fontSize = 14;
     weaponText.fontFamily = "monospace";
     weaponText.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-    weaponText.paddingLeft = "30px";
+    weaponText.paddingLeft = "40px"; //move left
     weaponRow.addControl(weaponText);
     this._weaponText = weaponText;
 
@@ -144,8 +143,8 @@ export class HUD {
     modeText.fontSize = 12;
     modeText.fontFamily = "monospace";
     modeText.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-    modeText.paddingLeft = "130px";
-    modeText.paddingRight = "8px";
+    modeText.paddingLeft = "140px"; // move left
+    //modeText.paddingRight = "10px";
     weaponRow.addControl(modeText);
     this._modeText = modeText;
 
@@ -158,22 +157,11 @@ export class HUD {
     ammoBlock.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
     ammoBlock.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_CENTER;
     ammoBlock.paddingRight = "4px";
-    ammoBlock.paddingTop = "-30px";
+    ammoBlock.paddingTop = "-45px"; // -45px in middle of panel
     ammoStack.addControl(ammoBlock);
     this._ammoText = ammoBlock;
 
-    const status = new TextBlock("statusText");
-    status.text = "";
-    status.color = "rgba(229,236,255,0.65)";
-    status.fontSize = 12;
-    status.fontFamily = "monospace";
-    status.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-    status.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-    status.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_CENTER;
-    ammoStack.addControl(status);
-    this._statusText = status;
-
-    // CROSSHAIR (minimal dot)
+    // CROSSHAIR
     this._crosshair = new Rectangle("crosshair");
     this._crosshair.width = "6px";
     this._crosshair.height = "6px";
@@ -186,7 +174,7 @@ export class HUD {
     this._crosshair.verticalAlignment = Control.VERTICAL_ALIGNMENT_CENTER;
     this._ui.addControl(this._crosshair);
 
-    // Center reload bar (below crosshair)
+    // Reload bar below crosshair in center
     const reloadContainer = new Rectangle("reloadContainer");
     reloadContainer.width = "160px";
     reloadContainer.height = "10px";
@@ -255,11 +243,6 @@ export class HUD {
   public setWeaponInfo(name: string, mode: string): void {
     if (this._weaponText) this._weaponText.text = name;
     if (this._modeText) this._modeText.text = mode;
-  }
-
-  public setStatus(text: string): void {
-    if (!this._statusText) return;
-    this._statusText.text = text;
   }
 
   public setKillFeed(lines: string[]): void {

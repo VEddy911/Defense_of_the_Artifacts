@@ -9,10 +9,7 @@ import {
 import { socket } from "./network";
 import { Player } from "./characterController";
 import { HUD } from "./hud";
-import {
-  WEAPONS,
-  createWeaponState,
-} from "./weapons";
+import { WEAPONS, createWeaponState } from "./weapons";
 import type { WeaponId, WeaponSpec, WeaponState } from "./weapons";
 
 interface HitPayload {
@@ -34,10 +31,9 @@ export class CombatSystem {
   private _health = 100;
   private _lastFrame = performance.now();
   private _hitMarkerTimeout = 0;
-  private _recoilKick = 0;
   private _fxColorTracer = new Color3(0.8, 0.9, 1);
   private _fxColorHit = new Color3(1, 0.3, 0.3);
-  private _audioCtx?: AudioContext;
+  private _audioClips: Record<string, HTMLAudioElement | null> = {};
   private _killFeed: { text: string; ts: number }[] = [];
   private _lastMoveAmount = 0;
 
@@ -60,6 +56,11 @@ export class CombatSystem {
     this._hud?.setWeaponInfo("Rifle", "AUTO");
     this._player.showWeapon("rifle");
 
+    this._preloadAudio("rifle_shot", "/audio/rifle_shot.mp3");
+    this._preloadAudio("pistol_shot", "/audio/pistol_shot.mp3");
+    this._preloadAudio("melee_swing", "/audio/melee_swing.mp3");
+    this._preloadAudio("reload", "/audio/reload.mp3");
+
     window.addEventListener("mousedown", this._onMouseDown);
     window.addEventListener("mouseup", this._onMouseUp);
     window.addEventListener("keydown", this._onKeyDown);
@@ -70,18 +71,15 @@ export class CombatSystem {
       this._hud?.setHealth(this._health);
     });
 
-    socket.on(
-      "combat:hitmarker",
-      (data: { shooterId: string; targetId: string }) => {
-        if (!socket.id || data.shooterId !== socket.id) return;
-        this._triggerHitMarker();
-      }
-    );
+    socket.on("combat:hitmarker", (data: { shooterId: string; targetId: string }) => {
+      if (!socket.id || data.shooterId !== socket.id) return;
+      this._triggerHitMarker();
+    });
 
     socket.on(
       "combat:kill",
       (data: { killerId: string; victimId: string; weaponId: string }) => {
-        const txt = `${data.killerId} → ${data.victimId} (${data.weaponId})`;
+        const txt = `${data.killerId} -> ${data.victimId} (${data.weaponId})`;
         this._killFeed.unshift({ text: txt, ts: performance.now() });
         this._killFeed = this._killFeed.slice(0, 5);
         this._hud?.setKillFeed(this._killFeed.map((k) => k.text));
@@ -111,24 +109,15 @@ export class CombatSystem {
       state.spread = Math.max(spec.spread, state.spread - spec.spreadRecover * dt);
     }
 
-    // crosshair bloom recovery
-    this._hud?.setCrosshairScale(1 + this._weaponState[this._activeWeapon].spread * 0.05);
-
-    // recoil kick decay
-    if (this._recoilKick > 0) {
-      this._recoilKick = Math.max(0, this._recoilKick - dt * 0.8);
-    }
-
     // hit marker decay
     if (this._hitMarkerTimeout && now > this._hitMarkerTimeout) {
       this._hitMarkerTimeout = 0;
-      this._hud?.setCrosshairScale(1 + this._weaponState[this._activeWeapon].spread * 0.05);
     }
 
     this._processReload(now);
     this._processFire(now);
 
-    // movement-based bloom
+    // movement based bloom
     this._lastMoveAmount = this._player.getMoveAmount();
     const moveFactor = 1 + this._lastMoveAmount * 0.15;
     this._hud?.setCrosshairScale(moveFactor + this._weaponState[this._activeWeapon].spread * 0.05);
@@ -197,8 +186,10 @@ export class CombatSystem {
     this._playShotSound(spec.id);
 
     if (hit.point) {
-      this._spawnTracer(muzzle, new Vector3(hit.point.x, hit.point.y, hit.point.z));
-      this._spawnImpact(new Vector3(hit.point.x, hit.point.y, hit.point.z), !!hit.targetId);
+      const hitPoint = new Vector3(hit.point.x, hit.point.y, hit.point.z);
+      const start = muzzle.add(new Vector3(0, 0.05, 0)); // lift tracer origin slightly
+      this._spawnImpact(hitPoint, !!hit.targetId);
+      this._spawnTracer(start, hitPoint);
     }
 
     if (!spec.automatic) {
@@ -224,21 +215,19 @@ export class CombatSystem {
     const ray = new Ray(origin.clone(), direction, range);
 
     const picks = this._scene.multiPickWithRay(ray) || [];
-    // prefer hitting players
+    // hitting players
     for (const pick of picks) {
       const pid = pick?.pickedMesh?.metadata?.playerId as string | undefined;
       if (pick?.hit && pid) {
         const point = pick.pickedPoint;
         return {
           targetId: pid,
-          point: point
-            ? { x: point.x, y: point.y, z: point.z }
-            : undefined,
+          point: point ? { x: point.x, y: point.y, z: point.z } : undefined,
         };
       }
     }
 
-    // no player hit; return impact point along the ray if any
+    // no player hit - return impact point along the ray if any
     const first = picks.find((p) => p?.hit);
     if (first?.pickedPoint) {
       return { point: { x: first.pickedPoint.x, y: first.pickedPoint.y, z: first.pickedPoint.z } };
@@ -269,7 +258,6 @@ export class CombatSystem {
     const pattern = spec.recoilPattern;
     const step = pattern[state.recoilIndex % pattern.length];
     state.recoilIndex = (state.recoilIndex + 1) % pattern.length;
-    this._recoilKick += Math.abs(step.x);
     const cam = this._player.camera;
     cam.rotation.x += step.x;
     cam.rotation.y += step.y;
@@ -282,6 +270,7 @@ export class CombatSystem {
     state.reloading = true;
     state.nextFireAt = now + spec.reloadMs;
     this._hud?.setReloadProgress(0, true);
+    this._playReloadSound();
   }
 
   private _onMouseDown = (e: MouseEvent) => {
@@ -320,10 +309,10 @@ export class CombatSystem {
 
   private _triggerHitMarker() {
     this._hitMarkerTimeout = performance.now() + 120;
-    // simple crosshair flash via size bump
     this._hud?.setCrosshairScale(1.4);
   }
 
+  // bullet tracer (adjust position in characterController.ts)
   private _spawnTracer(origin: Vector3, point: Vector3) {
     const line = MeshBuilder.CreateLines(
       `tracer_${Date.now()}`,
@@ -338,10 +327,11 @@ export class CombatSystem {
     setTimeout(() => line.dispose(), 80);
   }
 
+  // hit marker
   private _spawnImpact(point: Vector3, isHit: boolean) {
     const sphere = MeshBuilder.CreateSphere(
       `impact_${Date.now()}`,
-      { diameter: isHit ? 0.1 : 0.1 },
+      { diameter: isHit ? 0.12 : 0.1 },
       this._scene
     );
     sphere.position.copyFrom(point);
@@ -352,41 +342,35 @@ export class CombatSystem {
     setTimeout(() => sphere.dispose(), 150);
   }
 
-  private _spawnMuzzleFlash(origin: Vector3, dir: Vector3, weaponId: WeaponId) {
-    const pos = origin.add(dir.scale(0.08));
-    const flash = MeshBuilder.CreateSphere(
-      `muzzle_${Date.now()}`,
-      { diameter: weaponId === "rifle" ? 0.1 : 0.1 },
-      this._scene
-    );
-    flash.position.copyFrom(pos);
-    const mat = new StandardMaterial(`muzzleMat_${Date.now()}`, this._scene);
-    mat.emissiveColor = new Color3(1, 0.8, 0.3);
-    mat.alpha = 0.9;
-    flash.material = mat;
-    setTimeout(() => flash.dispose(), 60);
+  private _spawnMuzzleFlash(_origin: Vector3, _dir: Vector3, _weaponId: WeaponId) {
+    // muzzle flash disabled (maybe added in future)
   }
 
+  // audio control
   private _playShotSound(weaponId: WeaponId) {
-    try {
-      if (!this._audioCtx) {
-        const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
-        this._audioCtx = AC ? new AC() : undefined;
+    const clipName =
+      weaponId === "rifle" ? "rifle_shot" : weaponId === "pistol" ? "pistol_shot" : "melee_swing";
+    const clip = this._audioClips[clipName];
+    if (clip) {
+      try {
+        clip.currentTime = 0;
+        clip.volume = weaponId === "melee" ? 0.5 : 0.9;
+        clip.play();
+      } catch (err) {
+        // ignore audio errors
       }
-      if (!this._audioCtx) return;
-      const ctx = this._audioCtx;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "triangle";
-      const base = weaponId === "rifle" ? 220 : weaponId === "pistol" ? 260 : 180;
-      osc.frequency.value = base + Math.random() * 20;
-      gain.gain.value = 0.08;
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.08);
+    }
+  }
+
+  private _playReloadSound() {
+    const clip = this._audioClips["reload"];
+    if (!clip) return;
+    try {
+      clip.currentTime = 0;
+      clip.volume = 0.6;
+      clip.play();
     } catch (err) {
-      // ignore audio errors
+      // ignore
     }
   }
 
@@ -394,5 +378,15 @@ export class CombatSystem {
     if (id === "rifle") return "Rifle";
     if (id === "pistol") return "Pistol";
     return "Melee";
+  }
+
+  private _preloadAudio(key: string, path: string) {
+    try {
+      const audio = new Audio(path);
+      audio.preload = "auto";
+      this._audioClips[key] = audio;
+    } catch (err) {
+      this._audioClips[key] = null;
+    }
   }
 }

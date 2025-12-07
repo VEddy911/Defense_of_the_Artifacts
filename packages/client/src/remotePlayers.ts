@@ -48,16 +48,6 @@ export class RemotePlayers {
         mat.diffuseColor = new Color3(0.2, 0.7, 1.0);
         mesh.material = mat;
 
-        // simple head hitbox for headshots
-        const head = MeshBuilder.CreateSphere(`remote_${p.id}_head`, { diameter: 0.4 }, this._scene);
-        head.position = new Vector3(0, 1, 0);
-        head.parent = mesh;
-        head.metadata = { playerId: p.id, part: "head" };
-        const headMat = new StandardMaterial(`remoteHeadMat_${p.id}`, this._scene);
-        headMat.diffuseColor = new Color3(0.9, 0.9, 0.9);
-        headMat.alpha = 0.001; // nearly invisible but pickable
-        head.material = headMat;
-
         this._meshes.set(p.id, mesh);
       }
 
