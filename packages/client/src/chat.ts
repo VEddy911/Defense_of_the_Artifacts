@@ -1,3 +1,4 @@
+// what sup chat
 import { socket } from "./network";
 import { PlayerInput } from "./inputController";
 
