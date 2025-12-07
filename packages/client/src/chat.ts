@@ -19,8 +19,8 @@ export class ChatUI {
 
     const container = document.createElement("div");
     container.style.position = "fixed";
-    container.style.bottom = "70px"; // sits above health bar
-    container.style.left = "35px";
+    container.style.bottom = "85px"; // sits above health bar
+    container.style.left = "45px";
     container.style.width = "300px";
     container.style.maxWidth = "42vw";
     container.style.fontFamily = "monospace";

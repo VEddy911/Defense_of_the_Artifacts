@@ -23,6 +23,7 @@ import { Environment } from "./environment";
 import { PlayerInput } from "./inputController";
 import { Player } from "./characterController";
 import { ChatUI } from "./chat";
+import { CombatSystem } from "./combat";
 
 // multiplayer
 import { RemotePlayers } from "./remotePlayers";
@@ -50,6 +51,7 @@ export class App {
 
   private _hud?: HUD;
   private _remotePlayers?: RemotePlayers;
+  private _combat?: CombatSystem;
 
   private _lastStateSend = 0;
 
@@ -164,6 +166,7 @@ export class App {
 
       // local movement
       this._player.update();
+      this._combat?.update();
 
       // send local player state to server at ~20 Hz
       if (now - this._lastStateSend >= 50) {
@@ -181,6 +184,9 @@ export class App {
 
     this._hud = new HUD(this._scene);
     this._hud.buildHUD();
+    if (this._player) {
+      this._combat = new CombatSystem(scene, this._player, this._hud);
+    }
 
     // pointer lock on left click
     const canvas = this._canvas;
