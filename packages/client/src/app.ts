@@ -27,6 +27,7 @@ import { ChatUI } from "./chat";
 // multiplayer
 import { RemotePlayers } from "./remotePlayers";
 import { socket } from "./network";
+import { buildPlayerState } from "./playerState";
 
 enum State {
   START = 0,
@@ -167,16 +168,9 @@ export class App {
       // send local player state to server at ~20 Hz
       if (now - this._lastStateSend >= 50) {
         this._lastStateSend = now;
-        const cam = this._player.camera;
-        const pos = cam.position;
-        const rot = cam.rotation;
 
-        socket.emit("playerState", {
-          x: pos.x,
-          y: pos.y,
-          z: pos.z,
-          ry: rot.y,
-        });
+        const cam = this._player.camera;
+        socket.emit("playerState", buildPlayerState(cam));
       }
     });
 
