@@ -4,7 +4,7 @@
     "useDefineForClassFields": true,
     "module": "ESNext",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["vite/client"],
+    "types": ["vite/client", "jest"],
     "skipLibCheck": true, // don't type check .d.ts files from node_module
     "sourceMap": true, // generate source maps so browser devtools can map JS back to TS
 

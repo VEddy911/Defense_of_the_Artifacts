@@ -1,6 +1,7 @@
 import "@babylonjs/core/Debug/debugLayer";
 import "@babylonjs/inspector";
 import "@babylonjs/loaders/glTF";
+import { createCanvas } from "./createCanvas";
 
 import { HUD } from "./hud";
 
@@ -52,7 +53,7 @@ export class App {
   private _lastStateSend = 0;
 
   constructor() {
-    this._canvas = this._createCanvas();
+    this._canvas = createCanvas();
 
     this._engine = new Engine(this._canvas, true);
     this._scene = new Scene(this._engine);
@@ -84,15 +85,6 @@ export class App {
     window.addEventListener("resize", () => {
       this._engine.resize();
     });
-  }
-
-  private _createCanvas(): HTMLCanvasElement {
-    const canvas = document.createElement("canvas");
-    canvas.style.width = "100%";
-    canvas.style.height = "100%";
-    canvas.id = "gameCanvas";
-    document.body.appendChild(canvas);
-    return canvas;
   }
 
   private async _setUpGame() {
