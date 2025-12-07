@@ -1,4 +1,4 @@
-import { Color3, MeshBuilder, Scene, StandardMaterial, UniversalCamera, Vector3 } from "@babylonjs/core";
+import { Color3, MeshBuilder, Scene, SceneLoader, StandardMaterial, TransformNode, UniversalCamera, Vector3 } from "@babylonjs/core";
 import { PlayerInput } from "./inputController";
 import { socket } from "./network";
 import type { WeaponId } from "./weapons";
@@ -19,10 +19,10 @@ export class Player {
     private _crouchHeight = 1.5;
     private _defaultFov = 0.8;
     private _adsFov = 0.55;
-    private _weaponMesh?: any;
-    private _barrelMesh?: any;
-    private _bobTime = 0;
-    private _weaponOffset = new Vector3(0.25, -0.18, 0.4);
+    private _weaponMesh?: TransformNode;
+    private _weaponRoot?: TransformNode;
+    private _weaponCache: Partial<Record<WeaponId, TransformNode>> = {};
+    private _currentWeaponConfig?: { hipPos: Vector3; adsPos: Vector3; rot: Vector3; scale: number };
 
     constructor(scene: Scene, canvas: HTMLCanvasElement, input: PlayerInput) {
         this._scene = scene;
@@ -44,7 +44,7 @@ export class Player {
         this.camera.minZ = 0.01;
         this.camera.fov = this._defaultFov;
 
-        this._buildWeaponMesh("rifle");
+        void this.showWeapon("rifle");
     }
 
     public respawn(position: Vector3): void {
@@ -53,23 +53,17 @@ export class Player {
     }
 
     public showWeapon(id: WeaponId): void {
-        if (!this._weaponMesh) {
-            this._buildWeaponMesh(id);
-            return;
-        }
-        const mat = this._weaponMesh.material as StandardMaterial;
-        mat.emissiveColor = this._weaponColor(id);
-        this._weaponMesh.isVisible = true;
-        if (this._barrelMesh) {
-            this._barrelMesh.material = this._weaponMesh.material;
-        }
+        void this._loadWeaponModel(id);
     }
 
+    // tracer position adjust here
     public getMuzzleWorldPosition(): Vector3 {
-        if (this._weaponMesh) {
-            return this._weaponMesh.getAbsolutePosition().add(this.camera.getForwardRay().direction.scale(0.3));
-        }
         const forward = this.camera.getForwardRay().direction;
+        if (this._weaponMesh) {
+            return this._weaponMesh.getAbsolutePosition()
+                .add(forward.scale(0.5))
+                .add(new Vector3(0, 0.02, 0.3));
+        }
         return this.camera.position.add(forward.scale(0.5));
     }
 
@@ -87,32 +81,88 @@ export class Player {
         return new Color3(1, 0.4, 0.4);
     }
 
-    private _buildWeaponMesh(id: WeaponId): void {
-        const body = MeshBuilder.CreateBox("weaponBody", { width: 0.08, height: 0.08, depth: 0.35 }, this._scene);
-        const barrel = MeshBuilder.CreateCylinder("weaponBarrel", { diameter: 0.04, height: 0.3 }, this._scene);
-        barrel.rotation.x = Math.PI / 2;
-        barrel.position.z = 0.25;
-        barrel.position.y = -0.02;
+    private async _loadWeaponModel(id: WeaponId): Promise<void> {
+        const cfg: Record<WeaponId, { file: string; hipPos: Vector3; adsPos: Vector3; rot: Vector3; scale: number }> = {
+            // weapon position -90 degree face forward. keep melee 90
+            rifle: {
+                file: "rifle.glb",
+                hipPos: new Vector3(0.3, -0.16, 0.45),
+                adsPos: new Vector3(0.08, -0.14, 0.5),
+                rot: new Vector3(0, -Math.PI / 2, 0),
+                scale: 1.5,
+            },
+            pistol: {
+                file: "pistol.glb",
+                hipPos: new Vector3(0.2, -0.16, 0.5),
+                adsPos: new Vector3(0.08, -0.14, 0.52),
+                rot: new Vector3(0, -Math.PI / 2, 0),
+                scale: 1.5,
+            },
+            melee: {
+                file: "melee.glb",
+                hipPos: new Vector3(0.22, -0.1, 0.4),
+                adsPos: new Vector3(0.22, -0.1, 0.4),
+                rot: new Vector3(0, Math.PI / 2, 0),
+                scale: 0.5,
+            },
+        };
 
-        const mat = new StandardMaterial("weaponMat", this._scene);
-        mat.emissiveColor = this._weaponColor(id);
-        body.material = mat;
-        barrel.material = mat;
+        try {
+            let cached = this._weaponCache[id];
+            if (!cached) {
+                const res = await SceneLoader.ImportMeshAsync("", "/models/", cfg[id].file, this._scene);
+                const root = new TransformNode(`weapon_${id}_root`, this._scene);
+                for (const m of res.meshes) {
+                    if (m === res.meshes[0]) continue;
+                    m.parent = root;
+                }
+                root.position.copyFrom(cfg[id].hipPos);
+                root.rotation = cfg[id].rot;
+                root.scaling = new Vector3(cfg[id].scale, cfg[id].scale, cfg[id].scale);
+                root.setEnabled(false);
+                this._weaponCache[id] = root;
+                cached = root;
+            }
 
-        body.parent = this.camera;
-        barrel.parent = body;
+            const instance = cached.clone(`weapon_${id}_${Date.now()}`, this.camera) as TransformNode;
+            instance.parent = this.camera;
+            instance.setEnabled(true);
 
-        body.position = this._weaponOffset.clone();
-        body.rotation = new Vector3(0.1, 0.3, 0);
+            if (this._weaponRoot) {
+                this._weaponRoot.dispose();
+            }
+            this._weaponRoot = instance;
+            this._weaponMesh = instance;
+            this._currentWeaponConfig = cfg[id];
+            this._applyWeaponPose();
+        } catch (err) {
+            // fallback primitive if model fails
+            const body = MeshBuilder.CreateBox("weaponBody", { width: 0.08, height: 0.08, depth: 0.35 }, this._scene);
+            body.position = new Vector3(0.25, -0.18, 0.4);
+            body.rotation = new Vector3(0.1, 0.3, 0);
+            const mat = new StandardMaterial("weaponMat", this._scene);
+            mat.emissiveColor = this._weaponColor(id);
+            body.material = mat;
+            body.parent = this.camera;
+            if (this._weaponRoot) this._weaponRoot.dispose();
+            this._weaponRoot = body;
+            this._weaponMesh = body;
+        }
+    }
 
-        this._weaponMesh = body;
-        this._barrelMesh = barrel;
+    private _applyWeaponPose(): void {
+        if (!this._weaponRoot || !this._currentWeaponConfig) return;
+        const cfg = this._currentWeaponConfig;
+        const pos = this._isAds ? cfg.adsPos : cfg.hipPos;
+        this._weaponRoot.position.copyFrom(pos);
+        this._weaponRoot.rotation = cfg.rot;
+        this._weaponRoot.scaling = new Vector3(cfg.scale, cfg.scale, cfg.scale);
     }
 
     public update(): void {
         const dt = this._scene.getEngine().getDeltaTime() / 1000;
 
-        // Movement speed (reduced while airborne and when crouched/ADS)
+        // Movement speed - reduced while airborne and when crouch/ADS 
         const baseSpeed = 2.8;
         const adsSpeed = 1.6;
         const crouchSpeed = 1.7;
@@ -130,16 +180,18 @@ export class Player {
         forward.normalize();
         right.normalize();
 
-        // ADS toggle (hold)
+        // ADS toggle hold shift
         if (this._input.ads && !this._isAds) {
             this._isAds = true;
             this.camera.fov = this._adsFov;
+            this._applyWeaponPose();
         } else if (!this._input.ads && this._isAds) {
             this._isAds = false;
             this.camera.fov = this._defaultFov;
+            this._applyWeaponPose();
         }
 
-        // Crouch toggle (hold C)
+        // Crouch toggle hold C
         if (this._input.crouch && !this._isCrouched) {
             this._isCrouched = true;
             this.camera.position.y = this._crouchHeight;
@@ -178,15 +230,6 @@ export class Player {
                    .add(right.scale(this._input.horizontal * moveSpeed * dt));
 
         this.camera.cameraDirection.addInPlace(horizontalMove);
-
-        // weapon bob / sway
-        this._bobTime += dt * (Math.abs(this._input.horizontal) + Math.abs(this._input.vertical) > 0 ? 8 : 3);
-        const bob = Math.sin(this._bobTime) * 0.02;
-        const sway = Math.sin(this._bobTime * 0.5) * 0.01;
-        if (this._weaponMesh) {
-            const target = new Vector3(this._weaponOffset.x + sway, this._weaponOffset.y + bob, this._weaponOffset.z);
-            this._weaponMesh.position = target;
-        }
 
         // multiplayer - send position and rotation to server
         socket.emit("player-update", {

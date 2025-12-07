@@ -1,9 +1,3 @@
-/**
- * PlayerInput abstracts away the raw keyboard events into simple numeric
- * values representing forward/back (vertical) and left/right (horizontal)
- * movement inputs.  The input controller listens for key down and key up
- * events on the DOM and updates its public properties accordingly.
- */
 export class PlayerInput {
     // axis values ranging from -1 to 1
     public horizontal: number = 0;

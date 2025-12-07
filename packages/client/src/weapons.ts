@@ -5,9 +5,9 @@ export interface WeaponSpec {
   damage: number;
   range: number;
   rpm: number;
-  spread: number; // degrees base
-  spreadBloom: number; // added per shot
-  spreadRecover: number; // per second
+  spread: number;
+  spreadBloom: number;
+  spreadRecover: number;
   mag: number;
   reloadMs: number;
   automatic: boolean;
