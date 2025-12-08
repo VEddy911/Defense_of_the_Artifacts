@@ -2,6 +2,8 @@ import { Color3, MeshBuilder, Scene, SceneLoader, StandardMaterial, TransformNod
 import { PlayerInput } from "./inputController";
 import { socket } from "./network";
 import type { WeaponId } from "./weapons";
+import { computeMoveAmount } from "./movement";
+import { getWeaponColorComponents } from "./weaponColor";
 
 export class Player {
     public camera: UniversalCamera;
@@ -72,13 +74,12 @@ export class Player {
     }
 
     public getMoveAmount(): number {
-        return Math.min(1, Math.abs(this._input.horizontal) + Math.abs(this._input.vertical));
+        return computeMoveAmount(this._input.horizontal, this._input.vertical);
     }
 
     private _weaponColor(id: WeaponId): Color3 {
-        if (id === "rifle") return new Color3(0.3, 0.8, 1);
-        if (id === "pistol") return new Color3(1, 0.8, 0.3);
-        return new Color3(1, 0.4, 0.4);
+        const { r, g, b } = getWeaponColorComponents(id);
+        return new Color3(r, g, b);
     }
 
     private async _loadWeaponModel(id: WeaponId): Promise<void> {
