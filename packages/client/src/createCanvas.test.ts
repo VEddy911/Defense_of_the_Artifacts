@@ -1,4 +1,4 @@
-import { createCanvas as createCanvas } from "./createCanvas";
+import { createCanvas } from "./createCanvas";
 
 describe("createGameCanvas", () => {
   beforeEach(() => {
