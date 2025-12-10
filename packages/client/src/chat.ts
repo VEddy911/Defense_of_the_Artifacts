@@ -126,10 +126,88 @@ export class ChatUI {
   }
 
   private _submit() {
-    const text = this._input.value.trim();
-    if (text.length > 0) {
+    const textTemp = this._input.value.trim();
+    if (textTemp.length > 0) {
+      const text = this._filterMessage(textTemp);
       socket.emit("chat:message", { text });
     }
     this._close();
   }
+
+  private _filterMessage(message: string): string {
+		let cleaned = message;
+		for (const word of badchat) {
+		  const regex = new RegExp(`\\b${word}\\b`, "gi");
+		  cleaned = cleaned.replace(regex, "****");
+	  }
+		return cleaned;
+	  }
 }
+
+// Inappropriate ChatMessage Filter Dictionary
+const badchat = [
+  "arse",
+  "arsehead",
+  "arsehole",
+  "ass",
+  "asshole",
+  "bastard",
+  "bitch",
+  "bloody",
+  "bollocks",
+  "brotherfucker",
+  "bugger",
+  "bullshit",
+  "child-fucker",
+  "cock",
+  "cocksucker",
+  "crap",
+  "cunt",
+  "dammit",
+  "damn",
+  "damned",
+  "dick",
+  "dick-head",
+  "dickhead",
+  "dumb-ass",
+  "dumbass",
+  "dyke",
+  "fag",
+  "faggot",
+  "father-fucker",
+  "fatherfucker",
+  "fuck",
+  "fucked",
+  "fucker",
+  "fucking",
+  "goddammit",
+  "goddamn",
+  "Goddamn",
+  "goddamned",
+  "goddamnit",
+  "godsdamn",
+  "hell",
+  "horseshit",
+  "jackarse",
+  "jack-ass",
+  "jackass",
+  "kike",
+  "mental",
+  "mother-fucker",
+  "motherfucker",
+  "nigga",
+  "nigra",
+  "pigfucker",
+  "piss",
+  "prick",
+  "pussy",
+  "shit",
+  "shite",
+  "sisterfuck",
+  "sisterfucker",
+  "slut",
+  "spastic",
+  "tranny",
+  "twat",
+  "wanker"
+];
