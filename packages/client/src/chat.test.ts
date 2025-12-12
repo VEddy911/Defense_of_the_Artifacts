@@ -78,4 +78,25 @@ describe("ChatUI", () => {
         expect(inputEl.value).toBe("");
         expect(inputEl.placeholder).toBe("Press Enter to chat");
     });
+    test("when chat is open, R and number keys are ignored", () => {
+        const reload = jest.fn();
+        const switchWeapon = jest.fn();
+
+        window.addEventListener("keydown", (e) => {
+            if (e.key === "r") reload();
+            if (["1", "2", "3"].includes(e.key)) switchWeapon();
+        });
+
+        const fakeInput = { setEnabled: jest.fn() } as any;
+        const chat = new ChatUI(fakeInput);
+
+        (chat as any)._open();
+
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "r" }));
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "1" }));
+
+        expect(reload).not.toHaveBeenCalled();
+        expect(switchWeapon).not.toHaveBeenCalled();
+    });
+
 });
