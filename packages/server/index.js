@@ -4,13 +4,12 @@ const cors = require("cors");
 const { Server } = require("socket.io");
 
 const app = express();
-app.use(cors());
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
+app.use(cors({ origin: CLIENT_ORIGIN }));
 
 const server = http.createServer(app);
-
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
 const io = new Server(server, {
-  cors: { origin: "CLIENT_ORIGIN", methods: ["GET", "POST"] },
+  cors: { origin: CLIENT_ORIGIN, methods: ["GET", "POST"] },
 });
 
 const WEAPONS = {
