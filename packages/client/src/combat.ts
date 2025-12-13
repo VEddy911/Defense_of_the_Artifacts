@@ -11,6 +11,7 @@ import { Player } from "./characterController";
 import { HUD } from "./hud";
 import { WEAPONS, createWeaponState } from "./weapons";
 import type { WeaponId, WeaponSpec, WeaponState } from "./weapons";
+import { chatOpen } from "./chat";
 
 interface HitPayload {
   targetId?: string;
@@ -285,6 +286,7 @@ export class CombatSystem {
   };
 
   private _onKeyDown = (e: KeyboardEvent) => {
+    if (chatOpen === true) return;
     const key = e.key.toLowerCase();
     const state = this._weaponState[this._activeWeapon];
     const spec = WEAPONS[this._activeWeapon];
