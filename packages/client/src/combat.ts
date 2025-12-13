@@ -286,7 +286,9 @@ export class CombatSystem {
 
   private _onKeyDown = (e: KeyboardEvent) => {
     const key = e.key.toLowerCase();
-    if (key === "r") {
+    const state = this._weaponState[this._activeWeapon];
+    const spec = WEAPONS[this._activeWeapon];
+    if (key === "r" && state.currentAmmo < spec.mag) {
       this._startReload(performance.now());
     }
     if (key === "1") this._switchWeapon("rifle");
