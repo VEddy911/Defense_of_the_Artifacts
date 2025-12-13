@@ -1,6 +1,8 @@
 // what sup chat
 import { socket } from "./network";
 import { PlayerInput } from "./inputController";
+export let chatOpen = false;
+
 
 interface ChatMessage {
   id: string;
@@ -109,6 +111,7 @@ export class ChatUI {
   }
 
   private _open() {
+	chatOpen = true;
     this._isOpen = true;
     this._input.style.display = "block";
     this._input.placeholder = "Type message, Enter to send, Esc to cancel";
@@ -117,6 +120,7 @@ export class ChatUI {
   }
 
   private _close() {
+	chatOpen = false;
     this._isOpen = false;
     this._input.blur();
     this._input.value = "";
