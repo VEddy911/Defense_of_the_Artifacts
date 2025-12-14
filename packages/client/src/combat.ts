@@ -71,6 +71,8 @@ export class CombatSystem {
 
     window.addEventListener("mousedown", this._onMouseDown);
     window.addEventListener("mouseup", this._onMouseUp);
+    window.addEventListener("pointerdown", this._onPointerDown);
+    window.addEventListener("pointerup", this._onPointerUp);
     window.addEventListener("keydown", this._onKeyDown);
 
     socket.on("player:damaged", (data: { targetId: string; hp: number }) => {
@@ -301,6 +303,17 @@ export class CombatSystem {
   };
 
   private _onMouseUp = (e: MouseEvent) => {
+    if (e.button !== 0) return;
+    this._fireDown = false;
+    this._firedThisPress = false;
+  };
+
+  private _onPointerDown = (e: PointerEvent) => {
+    if (e.button !== 0) return;
+    this._fireDown = true;
+  };
+
+  private _onPointerUp = (e: PointerEvent) => {
     if (e.button !== 0) return;
     this._fireDown = false;
     this._firedThisPress = false;
