@@ -6,6 +6,7 @@ export let chatOpen = false;
 
 interface ChatMessage {
   id: string;
+  name?: string;
   text: string;
 }
 
@@ -96,7 +97,8 @@ export class ChatUI {
     const item = document.createElement("div");
     const fromSelf = socket.id === msg.id;
     const shortId = msg.id.slice(0, 6);
-    item.textContent = `${fromSelf ? "You" : shortId}: ${msg.text}`;
+    const label = fromSelf ? "You" : msg.name || shortId;
+    item.textContent = `${label}: ${msg.text}`;
     item.style.marginBottom = "6px";
     item.style.fontSize = "13px";
     item.style.opacity = fromSelf ? "1" : "0.9";

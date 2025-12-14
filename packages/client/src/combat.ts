@@ -35,7 +35,14 @@ export class CombatSystem {
   private _fxColorTracer = new Color3(0.8, 0.9, 1);
   private _fxColorHit = new Color3(1, 0.3, 0.3);
   private _audioClips: Record<string, HTMLAudioElement | null> = {};
-  private _killFeed: { text: string; ts: number }[] = [];
+  private _killFeed: {
+    killer: string;
+    killerTeam?: string;
+    victim: string;
+    victimTeam?: string;
+    weapon: string;
+    ts: number;
+  }[] = [];
   private _lastMoveAmount = 0;
 
   constructor(scene: Scene, player: Player, hud?: HUD) {
@@ -79,17 +86,31 @@ export class CombatSystem {
 
     socket.on(
       "combat:kill",
-      (data: { killerId: string; victimId: string; weaponId: string }) => {
-        const txt = `${data.killerId} -> ${data.victimId} (${data.weaponId})`;
-        this._killFeed.unshift({ text: txt, ts: performance.now() });
+      (data: {
+        killerId: string;
+        victimId: string;
+        weaponId: string;
+        killerTeam?: string;
+        victimTeam?: string;
+        killerName?: string;
+        victimName?: string;
+      }) => {
+        this._killFeed.unshift({
+          killer: data.killerName || data.killerId,
+          killerTeam: data.killerTeam,
+          victim: data.victimName || data.victimId,
+          victimTeam: data.victimTeam,
+          weapon: data.weaponId,
+          ts: performance.now(),
+        });
         this._killFeed = this._killFeed.slice(0, 5);
-        this._hud?.setKillFeed(this._killFeed.map((k) => k.text));
+        this._hud?.setKillFeed(this._killFeed);
       }
     );
 
     socket.on(
       "player:respawn",
-      (data: { targetId: string; x: number; y: number; z: number }) => {
+      (data: { targetId: string; x: number; y: number; z: number; team?: string }) => {
         if (!socket.id || data.targetId !== socket.id) return;
         this._health = 100;
         this._hud?.setHealth(this._health);
@@ -392,5 +413,15 @@ export class CombatSystem {
     } catch (err) {
       this._audioClips[key] = null;
     }
+  }
+
+  public getActiveWeaponId(): WeaponId {
+    return this._activeWeapon;
+  }
+
+  private _label(team: string): string {
+    if (team === "teamA") return "TEAM A";
+    if (team === "teamB") return "TEAM B";
+    return team.toUpperCase();
   }
 }
