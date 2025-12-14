@@ -35,7 +35,14 @@ export class CombatSystem {
   private _fxColorTracer = new Color3(0.8, 0.9, 1);
   private _fxColorHit = new Color3(1, 0.3, 0.3);
   private _audioClips: Record<string, HTMLAudioElement | null> = {};
-  private _killFeed: { text: string; ts: number }[] = [];
+  private _killFeed: {
+    killer: string;
+    killerTeam?: string;
+    victim: string;
+    victimTeam?: string;
+    weapon: string;
+    ts: number;
+  }[] = [];
   private _lastMoveAmount = 0;
 
   constructor(scene: Scene, player: Player, hud?: HUD) {
@@ -85,13 +92,19 @@ export class CombatSystem {
         weaponId: string;
         killerTeam?: string;
         victimTeam?: string;
+        killerName?: string;
+        victimName?: string;
       }) => {
-        const killerTag = data.killerTeam ? `${data.killerTeam.toUpperCase()}:` : "";
-        const victimTag = data.victimTeam ? `${data.victimTeam.toUpperCase()}:` : "";
-        const txt = `${killerTag}${data.killerId} -> ${victimTag}${data.victimId} (${data.weaponId})`;
-        this._killFeed.unshift({ text: txt, ts: performance.now() });
+        this._killFeed.unshift({
+          killer: data.killerName || data.killerId,
+          killerTeam: data.killerTeam,
+          victim: data.victimName || data.victimId,
+          victimTeam: data.victimTeam,
+          weapon: data.weaponId,
+          ts: performance.now(),
+        });
         this._killFeed = this._killFeed.slice(0, 5);
-        this._hud?.setKillFeed(this._killFeed.map((k) => k.text));
+        this._hud?.setKillFeed(this._killFeed);
       }
     );
 
@@ -400,5 +413,15 @@ export class CombatSystem {
     } catch (err) {
       this._audioClips[key] = null;
     }
+  }
+
+  public getActiveWeaponId(): WeaponId {
+    return this._activeWeapon;
+  }
+
+  private _label(team: string): string {
+    if (team === "teamA") return "TEAM A";
+    if (team === "teamB") return "TEAM B";
+    return team.toUpperCase();
   }
 }
