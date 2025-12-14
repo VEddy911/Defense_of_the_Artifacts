@@ -21,7 +21,9 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
     "preserveConstEnums": true,
-    
+
     "rootDir": "src"
-  }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["dist", "node_modules", "vite.config.ts"]
 }

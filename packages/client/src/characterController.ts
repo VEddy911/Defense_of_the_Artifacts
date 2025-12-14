@@ -25,6 +25,7 @@ export class Player {
     private _weaponRoot?: TransformNode;
     private _weaponCache: Partial<Record<WeaponId, TransformNode>> = {};
     private _currentWeaponConfig?: { hipPos: Vector3; adsPos: Vector3; rot: Vector3; scale: number };
+    private _loaderReady?: Promise<void>;
 
     constructor(scene: Scene, canvas: HTMLCanvasElement, input: PlayerInput) {
         this._scene = scene;
@@ -111,6 +112,7 @@ export class Player {
         try {
             let cached = this._weaponCache[id];
             if (!cached) {
+                await this._ensureGltfLoader();
                 const res = await SceneLoader.ImportMeshAsync("", "/models/", cfg[id].file, this._scene);
                 const root = new TransformNode(`weapon_${id}_root`, this._scene);
                 for (const m of res.meshes) {
@@ -149,6 +151,13 @@ export class Player {
             this._weaponRoot = body;
             this._weaponMesh = body;
         }
+    }
+
+    private _ensureGltfLoader(): Promise<void> {
+        if (!this._loaderReady) {
+            this._loaderReady = import("@babylonjs/loaders/glTF").then(() => undefined);
+        }
+        return this._loaderReady;
     }
 
     private _applyWeaponPose(): void {

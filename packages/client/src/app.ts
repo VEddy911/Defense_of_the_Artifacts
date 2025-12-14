@@ -1,6 +1,3 @@
-import "@babylonjs/core/Debug/debugLayer";
-import "@babylonjs/inspector";
-import "@babylonjs/loaders/glTF";
 import { createCanvas } from "./createCanvas";
 
 import { HUD } from "./hud";
@@ -55,6 +52,8 @@ export class App {
   private _hud?: HUD;
   private _remotePlayers?: RemotePlayers;
   private _combat?: CombatSystem;
+  private _gameReady?: Promise<void>;
+  private _inspectorLoader?: Promise<void>;
   private _team?: string;
   private _scores: { teamA: number; teamB: number } = { teamA: 0, teamB: 0 };
   private _scoreLimit = 100;
@@ -74,22 +73,15 @@ export class App {
     this._engine = new Engine(this._canvas, true);
     this._scene = new Scene(this._engine);
 
-    // Toggle inspector
-    window.addEventListener("keydown", (ev) => {
-      if (ev.shiftKey && ev.ctrlKey && ev.altKey && ev.keyCode === 73) {
-        if (this._scene.debugLayer.isVisible()) {
-          this._scene.debugLayer.hide();
-        } else {
-          this._scene.debugLayer.show();
-        }
-      }
+    this._wireLazyInspectorToggle();
+    this._gameReady = this._setUpGame().catch((err) => {
+      console.error("Failed to set up game scene", err);
+      throw err;
     });
-
     this._main();
   }
 
   private async _main(): Promise<void> {
-    await this._setUpGame();
     await this._goToStart();
 
     this._engine.runRenderLoop(() => {
@@ -289,10 +281,20 @@ export class App {
     startBtn.left = "-10px";
     guiMenu.addControl(startBtn);
 
-    startBtn.onPointerDownObservable.add(() => {
+    startBtn.onPointerDownObservable.add(async () => {
       this._playerName = this._nameInput?.text?.trim() || this._playerName;
       this._sendName();
-      this._goToGame();
+      startBtn.isEnabled = false;
+      if (startBtn.textBlock) startBtn.textBlock.text = "Loading...";
+      try {
+        await this._gameReady;
+        await this._goToGame();
+      } catch (err) {
+        console.error("Unable to start game", err);
+      } finally {
+        startBtn.isEnabled = true;
+        if (startBtn.textBlock) startBtn.textBlock.text = "PLAY";
+      }
     });
 
     await scene.whenReadyAsync();
@@ -305,6 +307,7 @@ export class App {
 
   // GAMEPLAY
   private async _goToGame() {
+    await this._gameReady;
     this._scene.detachControl();
 
     const scene = this._gamescene;
@@ -396,6 +399,30 @@ export class App {
   private _sendName() {
     if (!this._playerName) return;
     socket.emit("player:name", { name: this._playerName });
+  }
+
+  private _wireLazyInspectorToggle() {
+    window.addEventListener("keydown", (ev) => {
+      if (!(ev.shiftKey && ev.ctrlKey && ev.altKey && ev.key.toLowerCase() === "i")) return;
+      if (typeof import.meta !== "undefined" && import.meta.env?.PROD) return;
+
+      if (!this._inspectorLoader) {
+        this._inspectorLoader = Promise.all([
+          import("@babylonjs/core/Debug/debugLayer"),
+          import("@babylonjs/inspector"),
+        ]).then(() => undefined);
+      }
+
+      this._inspectorLoader
+        .then(() => {
+          if (this._scene.debugLayer.isVisible()) {
+            this._scene.debugLayer.hide();
+          } else {
+            this._scene.debugLayer.show();
+          }
+        })
+        .catch((err) => console.error("Inspector load failed", err));
+    });
   }
 }
 

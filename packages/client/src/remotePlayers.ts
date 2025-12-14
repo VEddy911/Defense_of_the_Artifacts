@@ -1,4 +1,3 @@
-// packages/client/src/remotePlayers.ts
 import {
   Scene,
   MeshBuilder,
@@ -47,6 +46,7 @@ export class RemotePlayers {
   private _scene: Scene;
   private _entries: Map<string, RemoteEntry> = new Map();
   private _weaponCache: Map<string, TransformNode> = new Map();
+  private _loaderReady?: Promise<void>;
   private _tracerColor: Color3 = new Color3(0.8, 0.9, 1);
 
   constructor(scene: Scene) {
@@ -258,6 +258,7 @@ export class RemotePlayers {
     const cached = this._weaponCache.get(weaponId);
     if (cached) return cached;
 
+    await this._ensureGltfLoader();
     const file = this._weaponFile(weaponId);
     const result = await SceneLoader.ImportMeshAsync("", "/models/", file, this._scene);
     const root = new TransformNode(`weapon_root_${weaponId}`, this._scene);
@@ -270,6 +271,13 @@ export class RemotePlayers {
     root.setEnabled(false);
     this._weaponCache.set(weaponId, root);
     return root;
+  }
+
+  private _ensureGltfLoader(): Promise<void> {
+    if (!this._loaderReady) {
+      this._loaderReady = import("@babylonjs/loaders/glTF").then(() => undefined);
+    }
+    return this._loaderReady;
   }
 
   private _weaponFile(weaponId: string): string {
