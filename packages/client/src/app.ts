@@ -52,6 +52,10 @@ export class App {
   private _hud?: HUD;
   private _remotePlayers?: RemotePlayers;
   private _combat?: CombatSystem;
+  private _team?: string;
+  private _scores: { alpha: number; bravo: number } = { alpha: 0, bravo: 0 };
+  private _scoreLimit = 100;
+  private _winner?: string | null;
 
   private _lastStateSend = 0;
 
@@ -108,6 +112,35 @@ export class App {
     socket.on("worldState", (data: { players: any[] }) => {
       if (!this._remotePlayers) return;
       this._remotePlayers.syncFromServer(data.players, socket.id);
+    });
+
+    socket.on("team:assigned", (data: { team?: string }) => {
+      this._team = data.team;
+      this._hud?.setTeam(this._team);
+    });
+
+    socket.on(
+      "game:score",
+      (data: { scores?: { alpha?: number; bravo?: number }; limit?: number; winner?: string | null }) => {
+        this._scores = {
+          alpha: data.scores?.alpha ?? 0,
+          bravo: data.scores?.bravo ?? 0,
+        };
+        if (typeof data.limit === "number") this._scoreLimit = data.limit;
+        this._winner = data.winner ?? null;
+        this._hud?.setScores(this._scores, this._scoreLimit, this._winner);
+      }
+    );
+
+    socket.on("game:win", (data: { winner?: string; scores?: { alpha?: number; bravo?: number } }) => {
+      if (data.scores) {
+        this._scores = {
+          alpha: data.scores.alpha ?? this._scores.alpha,
+          bravo: data.scores.bravo ?? this._scores.bravo,
+        };
+      }
+      this._winner = data.winner ?? null;
+      this._hud?.setScores(this._scores, this._scoreLimit, this._winner);
     });
   }
 
@@ -187,6 +220,8 @@ export class App {
     if (this._player) {
       this._combat = new CombatSystem(scene, this._player, this._hud);
     }
+    this._hud.setTeam(this._team);
+    this._hud.setScores(this._scores, this._scoreLimit, this._winner);
 
     // pointer lock on left click
     const canvas = this._canvas;

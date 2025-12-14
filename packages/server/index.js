@@ -265,7 +265,7 @@ function emitScores(targetSocket) {
 function awardTeamPoint(teamId) {
   if (!teamId || matchState.winner) return;
   const current = matchState.scores[teamId] ?? 0;
-  const next = Math.min(MAX_SCORE, current + 1);
+  const next = Math.min(MAX_SCORE, current + 20); //score adjustment
   matchState.scores[teamId] = next;
   if (next >= MAX_SCORE) {
     matchState.winner = teamId;

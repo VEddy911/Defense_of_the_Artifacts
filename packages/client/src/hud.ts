@@ -22,6 +22,13 @@ export class HUD {
   private _killFeedStack?: StackPanel;
   private _maxHealth = 100;
   private _crosshairBaseSize = 3;
+  private _teamText?: TextBlock;
+  private _scoreAlphaText?: TextBlock;
+  private _scoreBravoText?: TextBlock;
+  private _limitText?: TextBlock;
+  private _winnerText?: TextBlock;
+  private _scoreLimit = 100;
+  private _localTeam?: string;
 
   constructor(scene: Scene) {
     this._scene = scene;
@@ -210,6 +217,85 @@ export class HUD {
     feed.spacing = 4;
     this._ui.addControl(feed);
     this._killFeedStack = feed;
+
+    // scoreboard top center
+    const scorePanel = new Rectangle("scorePanel");
+    scorePanel.width = "360px";
+    scorePanel.height = "80px";
+    scorePanel.cornerRadius = 10;
+    scorePanel.thickness = 1;
+    scorePanel.color = "rgba(255,255,255,0.08)";
+    scorePanel.background = "rgba(10, 12, 26, 0.55)";
+    scorePanel.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+    scorePanel.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    scorePanel.top = "16px";
+    scorePanel.paddingLeft = "12px";
+    scorePanel.paddingRight = "12px";
+    scorePanel.paddingTop = "10px";
+    scorePanel.paddingBottom = "10px";
+    this._ui.addControl(scorePanel);
+
+    const scoreStack = new StackPanel();
+    scoreStack.isVertical = true;
+    scoreStack.width = "100%";
+    scoreStack.height = "100%";
+    scoreStack.spacing = 6;
+    scorePanel.addControl(scoreStack);
+
+    const teamText = new TextBlock("teamText");
+    teamText.text = "Team: --";
+    teamText.color = "#e5ecff";
+    teamText.fontSize = 14;
+    teamText.fontFamily = "monospace";
+    teamText.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+    scoreStack.addControl(teamText);
+    this._teamText = teamText;
+
+    const scoreRow = new StackPanel();
+    scoreRow.isVertical = false;
+    scoreRow.width = "100%";
+    scoreRow.height = "24px";
+    scoreRow.spacing = 12;
+    scoreRow.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+    scoreRow.verticalAlignment = Control.VERTICAL_ALIGNMENT_CENTER;
+    scoreStack.addControl(scoreRow);
+
+    const alphaText = new TextBlock("scoreAlpha");
+    alphaText.text = "ALPHA 0";
+    alphaText.color = "#82e2ff";
+    alphaText.fontSize = 16;
+    alphaText.fontFamily = "monospace";
+    alphaText.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+    scoreRow.addControl(alphaText);
+    this._scoreAlphaText = alphaText;
+
+    const limitText = new TextBlock("scoreLimit");
+    limitText.text = "/100";
+    limitText.color = "#e5ecff";
+    limitText.fontSize = 12;
+    limitText.fontFamily = "monospace";
+    limitText.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+    scoreRow.addControl(limitText);
+    this._limitText = limitText;
+
+    const bravoText = new TextBlock("scoreBravo");
+    bravoText.text = "BRAVO 0";
+    bravoText.color = "#ff8d8d";
+    bravoText.fontSize = 16;
+    bravoText.fontFamily = "monospace";
+    bravoText.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+    scoreRow.addControl(bravoText);
+    this._scoreBravoText = bravoText;
+
+    const winnerText = new TextBlock("winnerText");
+    winnerText.text = "";
+    winnerText.color = "#e5ecff";
+    winnerText.fontSize = 14;
+    winnerText.fontFamily = "monospace";
+    winnerText.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+    winnerText.height = "18px";
+    scoreStack.addControl(winnerText);
+    this._winnerText = winnerText;
   }
 
   public setHealth(current: number, max: number = this._maxHealth): void {
@@ -259,5 +345,45 @@ export class HUD {
       t.height = "18px";
       this._killFeedStack.addControl(t);
     }
+  }
+
+  public setTeam(team: string | undefined): void {
+    this._localTeam = team;
+    if (this._teamText) {
+      this._teamText.text = `Team: ${team ? team.toUpperCase() : "--"}`;
+    }
+    this._updateScoreColors();
+  }
+
+  public setScores(
+    scores: { alpha?: number; bravo?: number },
+    limit: number = this._scoreLimit,
+    winner?: string | null
+  ): void {
+    this._scoreLimit = limit;
+    if (this._scoreAlphaText) {
+      this._scoreAlphaText.text = `ALPHA ${Math.floor(scores.alpha ?? 0)}`;
+    }
+    if (this._scoreBravoText) {
+      this._scoreBravoText.text = `BRAVO ${Math.floor(scores.bravo ?? 0)}`;
+    }
+    if (this._limitText) {
+      this._limitText.text = `/${Math.floor(limit)}`;
+    }
+    if (this._winnerText) {
+      this._winnerText.text = winner ? `${winner.toUpperCase()} wins!` : "";
+    }
+    this._updateScoreColors();
+  }
+
+  private _updateScoreColors(): void {
+    const alphaBase = "#82e2ff";
+    const bravoBase = "#ff8d8d";
+    const neutral = "#e5ecff";
+    const alphaHighlight = this._localTeam === "alpha" ? "#b1ecff" : alphaBase;
+    const bravoHighlight = this._localTeam === "bravo" ? "#ffc4c4" : bravoBase;
+    if (this._scoreAlphaText) this._scoreAlphaText.color = alphaHighlight;
+    if (this._scoreBravoText) this._scoreBravoText.color = bravoHighlight;
+    if (this._teamText) this._teamText.color = this._localTeam ? neutral : "#d0d8e9";
   }
 }

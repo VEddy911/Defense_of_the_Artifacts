@@ -79,8 +79,16 @@ export class CombatSystem {
 
     socket.on(
       "combat:kill",
-      (data: { killerId: string; victimId: string; weaponId: string }) => {
-        const txt = `${data.killerId} -> ${data.victimId} (${data.weaponId})`;
+      (data: {
+        killerId: string;
+        victimId: string;
+        weaponId: string;
+        killerTeam?: string;
+        victimTeam?: string;
+      }) => {
+        const killerTag = data.killerTeam ? `${data.killerTeam.toUpperCase()}:` : "";
+        const victimTag = data.victimTeam ? `${data.victimTeam.toUpperCase()}:` : "";
+        const txt = `${killerTag}${data.killerId} -> ${victimTag}${data.victimId} (${data.weaponId})`;
         this._killFeed.unshift({ text: txt, ts: performance.now() });
         this._killFeed = this._killFeed.slice(0, 5);
         this._hud?.setKillFeed(this._killFeed.map((k) => k.text));
@@ -89,7 +97,7 @@ export class CombatSystem {
 
     socket.on(
       "player:respawn",
-      (data: { targetId: string; x: number; y: number; z: number }) => {
+      (data: { targetId: string; x: number; y: number; z: number; team?: string }) => {
         if (!socket.id || data.targetId !== socket.id) return;
         this._health = 100;
         this._hud?.setHealth(this._health);
