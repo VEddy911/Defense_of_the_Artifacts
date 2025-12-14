@@ -12,6 +12,9 @@ const io = new Server(server, {
   cors: { origin: CLIENT_ORIGIN, methods: ["GET", "POST"] },
 });
 
+const TEAMS = ["alpha", "bravo"];
+const MAX_SCORE = 100;
+
 const WEAPONS = {
   rifle: { damage: 20, range: 120, rpm: 600, cone: 10, falloffStart: 60, falloffEnd: 140 },
   pistol: { damage: 28, range: 90, rpm: 300, cone: 12, falloffStart: 40, falloffEnd: 110 },
@@ -23,12 +26,16 @@ const players = new Map();
 const history = new Map(); // socket.id
 const lastFireAt = new Map();
 const buckets = new Map(); //spam limiting
+const matchState = { scores: { alpha: 0, bravo: 0 }, winner: null };
 
 io.on("connection", (socket) => {
   console.log("[server] Player connected:", socket.id);
 
   // add default state for this player
-  players.set(socket.id, { x: 0, y: 2, z: 0, ry: 0, hp: 100 });
+  const team = pickTeam();
+  players.set(socket.id, { x: 0, y: 2, z: 0, ry: 0, hp: 100, team });
+  socket.emit("team:assigned", { team });
+  emitScores(socket);
 
   // receive player state from a client
   socket.on("playerState", (state) => {
@@ -41,6 +48,7 @@ io.on("connection", (socket) => {
       z: state.z ?? current.z,
       ry: state.ry ?? current.ry,
       hp: current.hp ?? 100,
+      team: current.team,
     });
 
     // track history for lag comp
@@ -82,6 +90,10 @@ io.on("connection", (socket) => {
 
     const target = players.get(targetId);
     if (!target) return;
+
+    const shooterTeam = shooter.team;
+    const targetTeam = target.team;
+    if (shooterTeam && targetTeam && shooterTeam === targetTeam) return;
 
     // distance check prevent spoofing
     const shooterPos = pickHistorical(history.get(socket.id), payload?.ts) || shooter;
@@ -164,8 +176,15 @@ io.on("connection", (socket) => {
     if (newHp <= 0) {
       const respawnState = { ...target, x: 0, y: 2, z: 0, hp: 100 };
       players.set(targetId, respawnState);
-      io.emit("player:respawn", { targetId, x: 0, y: 2, z: 0 });
-      io.emit("combat:kill", { killerId: socket.id, victimId: targetId, weaponId: payload.weaponId });
+      io.emit("player:respawn", { targetId, x: 0, y: 2, z: 0, team: respawnState.team });
+      io.emit("combat:kill", {
+        killerId: socket.id,
+        victimId: targetId,
+        weaponId: payload.weaponId,
+        killerTeam: shooterTeam,
+        victimTeam: targetTeam,
+      });
+      awardTeamPoint(shooterTeam);
     }
   });
 
@@ -212,4 +231,47 @@ function pickHistorical(list, ts) {
   }
   if (Math.abs(ts - best.t) > 400) return undefined;
   return best;
+}
+
+function pickTeam() {
+  const counts = {};
+  for (const team of TEAMS) counts[team] = 0;
+  for (const player of players.values()) {
+    if (player.team && counts[player.team] !== undefined) {
+      counts[player.team] += 1;
+    }
+  }
+  let chosen = TEAMS[0];
+  let minCount = counts[chosen] ?? 0;
+  for (const team of TEAMS) {
+    const count = counts[team] ?? 0;
+    if (count < minCount) {
+      minCount = count;
+      chosen = team;
+    }
+  }
+  return chosen;
+}
+
+function emitScores(targetSocket) {
+  const payload = { scores: { ...matchState.scores }, limit: MAX_SCORE, winner: matchState.winner };
+  if (targetSocket) {
+    targetSocket.emit("game:score", payload);
+    return;
+  }
+  io.emit("game:score", payload);
+}
+
+function awardTeamPoint(teamId) {
+  if (!teamId || matchState.winner) return;
+  const current = matchState.scores[teamId] ?? 0;
+  const next = Math.min(MAX_SCORE, current + 1);
+  matchState.scores[teamId] = next;
+  if (next >= MAX_SCORE) {
+    matchState.winner = teamId;
+    emitScores();
+    io.emit("game:win", { winner: teamId, scores: { ...matchState.scores } });
+    return;
+  }
+  emitScores();
 }
