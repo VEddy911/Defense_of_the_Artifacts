@@ -7,19 +7,30 @@ This project is designed as a final project for a software engineering course.
 
 ## ⚙️ **Tech Stack**
 Babylon.js – 3D rendering
+
 Socket.IO – real-time multiplayer
+
 Node.js – server-side game logic
+
 Vite + TypeScript – fast client development environment
 
 ## 🔥**Project Status**
 
  Repository created ✅
+
  Client scaffold with Vite + TypeScript ✅
+
  Server scaffold with Node.js + Socket.IO ✅
+
  Client <-> Server socket connection working ✅
  Add Babylon.js 3D scene ✅
+
  Implement movement + camera ✅
+
  Implement player synchronization ✅
+
  Implement combat system + team system + chat ✅
+
  Implement HUD + UI ✅
+ 
  Add PvP mode ✅
